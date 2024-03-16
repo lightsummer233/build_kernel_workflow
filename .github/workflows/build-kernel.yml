@@ -1,0 +1,118 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_SOURCE:
+        description: 'Kernel Source'
+        required: true
+        default: 'Dimuuni/kernel-alioth'
+      KERNEL_SOURCE_BRANCH:
+        description: 'Branch'
+        required: true
+        default: 'kuno'
+      KERNEL_DEFCONFIG:
+        description: 'Defconfig'
+        required: true
+        default: 'alioth_defconfig'
+      CLANG_URL:
+        description: 'Clang URL'
+        required: true
+        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt'
+      PERSONAL_TOKEN:
+        description: 'Personal access token'
+        required: true
+        default: ''
+      USE_KERNELSU:
+        description: 'Use KernelSU'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Configuration
+      run: |
+        echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
+        echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+        echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
+        echo "CLANG_URL=${{ github.event.inputs.CLANG_URL }}" >> $GITHUB_ENV
+        echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
+        echo "USE_KERNELSU=${{ github.event.inputs.USE_KERNELSU }}" >> $GITHUB_ENV
+
+    - name: Setup build kernel environment
+      run: |
+        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M")" >> $GITHUB_ENV
+        echo "DEVICE=$(echo ${{ env.KERNEL_DEFCONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
+        sudo apt-get update
+        sudo apt-get install bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev x11proto-core-dev libx11-dev libgl1-mesa-dev unzip fontconfig make
+
+    - name: Download Clang Toolchain
+      run: |
+        mkdir clang
+        wget -q $(curl ${{ env.CLANG_URL }}) -O clang.tar.gz
+        tar -C clang/ -zxf clang.tar.gz
+
+    - name: Checkout kernel
+      uses: actions/checkout@v4
+      with:
+        token: ${{env.PERSONAL_TOKEN}}
+        github-server-url: 'https://github.com'
+        repository: ${{ env.KERNEL_SOURCE }}
+        ref: ${{ env.KERNEL_SOURCE_BRANCH }}
+        submodules: recursive
+        path: kernel-source
+
+    - name: Checkout AnyKernel3
+      uses: actions/checkout@v4
+      with:
+        token: ${{env.PERSONAL_TOKEN}}
+        repository: Dimuuni/AnyKernel3
+        path: kernel-source/AnyKernel3
+
+    - name: Setup KernelSU
+      if: env.USE_KERNELSU == 'true'
+      run: |
+        cd kernel-source
+            git apply AnyKernel3/patch/0001-KernelSU-Patch.patch
+            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+            echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
+
+    - name: Build kernel
+      run: |
+        cd kernel-source
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        export KBUILD_BUILD_HOST=GitHub-Action
+        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
+
+        scripts/config --file out/.config \
+          -d LTO_CLANG \
+          -e COMPAT_VDSO \
+          -d CFI_CLANG \
+          -e SHADOW_CALL_STACK \
+          -e SHADOW_CALL_STACK_VMAP \
+          -e RELR
+
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-gnu- \
+          CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+
+    - name: Pack kernel
+      run: |
+        cd kernel-source
+        cp out/arch/arm64/boot/Image AnyKernel3
+        cp out/arch/arm64/boot/dtbo.img AnyKernel3
+        cd AnyKernel3
+        zip -r9 "../Muramasa${{ env.UPLOADNAME }}-${{ env.DEVICE }}-${{ env.BUILD_TIME }}" * -x '*.git*' README.md -x 'modules/*' -x 'patch/*' -x 'ramdisk/*' >> /dev/null
+
+    - name: Upload Kernel
+      uses: actions/upload-artifact@v4
+      with:
+        name: Pack-kernel-${{ env.BUILD_TIME }}
+        path: kernel-source/*.zip
+
