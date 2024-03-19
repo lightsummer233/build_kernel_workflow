@@ -10,7 +10,7 @@ on:
       KERNEL_SOURCE_BRANCH:
         description: 'Branch'
         required: true
-        default: 'kuno'
+        default: 'aries'
       KERNEL_DEFCONFIG:
         description: 'Defconfig'
         required: true
