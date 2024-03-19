@@ -105,10 +105,12 @@ jobs:
     - name: Pack kernel
       run: |
         cd kernel-source
+        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/vendor/xiaomi/sm8250-common.config | cut -d'-' -f2 | tr -d '"')
+        sed -i "s/Muramasa/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
         cp out/arch/arm64/boot/Image AnyKernel3
         cp out/arch/arm64/boot/dtbo.img AnyKernel3
         cd AnyKernel3
-        zip -r9 "../Muramasa${{ env.UPLOADNAME }}-${{ env.DEVICE }}-${{ env.BUILD_TIME }}" * -x '*.git*' README.md -x 'modules/*' -x 'patch/*' -x 'ramdisk/*' >> /dev/null
+        zip -r9 "../$KERNEL_NAME${{ env.UPLOADNAME }}-${{ env.DEVICE }}-${{ env.BUILD_TIME }}" * -x '*.git*' README.md -x 'modules/*' -x 'patch/*' -x 'ramdisk/*' >> /dev/null
 
     - name: Upload Kernel
       uses: actions/upload-artifact@v4
