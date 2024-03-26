@@ -6,7 +6,7 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel Source'
         required: true
-        default: 'Dimuuni/kernel-alioth'
+        default: 'lightsummer233/kernel_xiaomi_sm8250'
       KERNEL_SOURCE_BRANCH:
         description: 'Branch'
         required: true
@@ -19,10 +19,10 @@ on:
         description: 'Clang URL'
         required: true
         default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt'
-      PERSONAL_TOKEN:
-        description: 'Personal access token'
-        required: true
-        default: ''
+      # PERSONAL_TOKEN:
+      #   description: 'Personal access token'
+      #   required: true
+      #   default: ''
       USE_KERNELSU:
         description: 'Use KernelSU'
         required: true
@@ -40,7 +40,7 @@ jobs:
         echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
         echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
         echo "CLANG_URL=${{ github.event.inputs.CLANG_URL }}" >> $GITHUB_ENV
-        echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
+        # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
         echo "USE_KERNELSU=${{ github.event.inputs.USE_KERNELSU }}" >> $GITHUB_ENV
 
     - name: Setup build kernel environment
@@ -59,7 +59,7 @@ jobs:
     - name: Checkout kernel
       uses: actions/checkout@v4
       with:
-        token: ${{env.PERSONAL_TOKEN}}
+        # token: ${{env.PERSONAL_TOKEN}}
         github-server-url: 'https://github.com'
         repository: ${{ env.KERNEL_SOURCE }}
         ref: ${{ env.KERNEL_SOURCE_BRANCH }}
@@ -69,15 +69,15 @@ jobs:
     - name: Checkout AnyKernel3
       uses: actions/checkout@v4
       with:
-        token: ${{env.PERSONAL_TOKEN}}
-        repository: Dimuuni/AnyKernel3
+        # token: ${{env.PERSONAL_TOKEN}}
+        repository: lightsummer233/AnyKernel3
         path: kernel-source/AnyKernel3
 
     - name: Setup KernelSU
       if: env.USE_KERNELSU == 'true'
       run: |
         cd kernel-source
-            git apply AnyKernel3/patch/0001-KernelSU-Patch.patch
+            git apply AnyKernel3/patch/KernelSU.patch
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
             echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
@@ -85,8 +85,8 @@ jobs:
       run: |
         cd kernel-source
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-        export KBUILD_BUILD_HOST=GitHub-Action
-        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+        export KBUILD_BUILD_HOST=AL1S
+        export KBUILD_BUILD_USER=awainatsu
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
 
         scripts/config --file out/.config \
@@ -106,7 +106,7 @@ jobs:
       run: |
         cd kernel-source
         KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/vendor/xiaomi/sm8250-common.config | cut -d'-' -f2 | tr -d '"')
-        sed -i "s/Muramasa/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
+        sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
         cp out/arch/arm64/boot/Image AnyKernel3
         cp out/arch/arm64/boot/dtbo.img AnyKernel3
         cd AnyKernel3
