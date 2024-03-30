@@ -28,6 +28,11 @@ on:
         required: true
         default: true
         type: boolean
+      USE_KERNELSU_DEBUG:
+        description: 'Use KernelSU Debug'
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -42,6 +47,7 @@ jobs:
         echo "CLANG_URL=${{ github.event.inputs.CLANG_URL }}" >> $GITHUB_ENV
         # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
         echo "USE_KERNELSU=${{ github.event.inputs.USE_KERNELSU }}" >> $GITHUB_ENV
+        echo "USE_KERNELSU_DEBUG=${{ github.event.inputs.USE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
 
     - name: Setup Build Environment
       run: |
@@ -82,6 +88,9 @@ jobs:
             echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
             curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
             echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
+            if [ ${{ env.USE_KERNELSU_DEBUG }} = true ]; then
+              echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+            fi
 
     - name: Build Kernel
       run: |
