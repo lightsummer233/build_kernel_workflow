@@ -66,7 +66,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         # token: ${{env.PERSONAL_TOKEN}}
-        github-server-url: 'https://github.com'
         repository: ${{ env.KERNEL_SOURCE }}
         ref: ${{ env.KERNEL_SOURCE_BRANCH }}
         submodules: recursive
@@ -101,9 +100,12 @@ jobs:
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
 
         scripts/config --file out/.config \
-          -d LTO_CLANG \
-          -e COMPAT_VDSO \
+          -e THINLTO \
+          -e LTO_CLANG \
+          -d CONFIG_CFI_CLANG \
+          -d CFI_PERMISSIVE \
           -d CFI_CLANG \
+          -e COMPAT_VDSO \
           -e SHADOW_CALL_STACK \
           -e SHADOW_CALL_STACK_VMAP \
           -e RELR
