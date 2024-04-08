@@ -54,7 +54,7 @@ jobs:
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M")" >> $GITHUB_ENV
         echo "DEVICE=$(echo ${{ env.KERNEL_DEFCONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev x11proto-core-dev libx11-dev libgl1-mesa-dev unzip fontconfig make
+        sudo apt install bc make bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev
 
     - name: Download Clang Toolchain
       run: |
@@ -82,14 +82,14 @@ jobs:
       if: env.USE_KERNELSU == 'true'
       run: |
         cd kernel-source
-            # git apply AnyKernel3/patch/KernelSU.patch
-            bash AnyKernel3/patch/patch.sh
-            echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-            curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
-            echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
-            if [ ${{ env.USE_KERNELSU_DEBUG }} = true ]; then
-              echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-            fi
+        # git apply AnyKernel3/patch/KernelSU.patch
+        bash AnyKernel3/patch/patch.sh
+        echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+        echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
+        if [ ${{ env.USE_KERNELSU_DEBUG }} = true ]; then
+          echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        fi
 
     - name: Build Kernel
       run: |
@@ -115,19 +115,25 @@ jobs:
           CROSS_COMPILE=aarch64-linux-gnu- \
           CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
 
-    - name: Pack Kernel
+    - name: Configuration AnyKernel3
       run: |
         cd kernel-source
         KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/vendor/xiaomi/sm8250-common.config | cut -d'-' -f2 | tr -d '"')
         sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
         cp out/arch/arm64/boot/Image AnyKernel3
         # cp out/arch/arm64/boot/dtbo.img AnyKernel3
-        cd AnyKernel3
-        zip -r9 "../$KERNEL_NAME${{ env.UPLOADNAME }}-${{ env.DEVICE }}-${{ env.BUILD_TIME }}" * -x '*.git*' README.md -x 'modules/*' -x 'patch/*' -x 'ramdisk/*' >> /dev/null
+        # cp out/arch/arm64/boot/dtb AnyKernel3
 
-    - name: Upload Kernel
+    - name: Upload kernel
+      if: env.UPLOAD_KERNEL == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: Pack-kernel-${{ env.BUILD_TIME }}
-        path: kernel-source/*.zip
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLED_KERNELSU }}-${{ env.BUILD_TIME }}
+        path: |
+          kernel-source/AnyKernel3/
+          !kernel-source/AnyKernel3/*.git*
+          !kernel-source/AnyKernel3/patch
+          !kernel-source/AnyKernel3/modules
+          !kernel-source/AnyKernel3/ramdisk
+        compression-level: 9
 
