@@ -124,8 +124,7 @@ jobs:
         # cp out/arch/arm64/boot/dtbo.img AnyKernel3
         # cp out/arch/arm64/boot/dtb AnyKernel3
 
-    - name: Upload kernel
-      if: env.UPLOAD_KERNEL == 'true'
+    - name: Upload Kernel
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLED_KERNELSU }}-${{ env.BUILD_TIME }}
