@@ -85,7 +85,7 @@ jobs:
         # git apply AnyKernel3/patch/KernelSU.patch
         bash AnyKernel3/patch/patch.sh
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+        curl -LSs "https://raw.githubusercontent.com/lightsummer233/KernelSU/main/kernel/setup.sh" | bash -s main
         echo "ENABLE_KERNELSU=-KernelSU" >> $GITHUB_ENV
         if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
           echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
