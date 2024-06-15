@@ -82,8 +82,9 @@ jobs:
       if: env.ENABLE_KERNELSU == 'true'
       run: |
         cd kernel-source
-        # git apply AnyKernel3/patch/KernelSU.patch
-        bash AnyKernel3/patch/patch.sh
+        git config --global user.email "lightsummer233@awainatsu.moe"
+        git config --global user.name "lightsummer233"
+        git am ../patch/KernelSU.patch
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         curl -LSs "https://raw.githubusercontent.com/lightsummer233/KernelSU/main/kernel/setup.sh" | bash -s main
         echo "ENABLE_KERNELSU=-KernelSU" >> $GITHUB_ENV
