@@ -80,10 +80,9 @@ jobs:
       with:
         name: github.event.inputs.KERNEL_MANIFEST_BRANCH-${{ env.BUILD_TIME }}
         path: |
-          kernel-source/AnyKernel3/
-          !kernel-source/AnyKernel3/*.git*
-          !kernel-source/AnyKernel3/patch
-          !kernel-source/AnyKernel3/modules
-          !kernel-source/AnyKernel3/ramdisk
+          build/AnyKernel3/
+          !build/AnyKernel3/*.git*
+          !build/AnyKernel3/patch
+          !build/AnyKernel3/modules
+          !build/AnyKernel3/ramdisk
         compression-level: 9
-
