@@ -18,9 +18,21 @@ on:
 
 jobs:
   build:
+    name: Build Kernel
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
+    - name: Remove unused packages
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: ture
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: false
 
     - name: Setup Build Environment
       run: |
