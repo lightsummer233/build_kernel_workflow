@@ -1,0 +1,77 @@
+name: Build Kernel (Sync source via Repo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_MANIFEST:
+        description: 'Kernel Manifest'
+        required: true
+        default: 'lightsummer233/kernel_manifest'
+      KERNEL_MANIFEST_BRANCH:
+        description: 'Kernel Manifest Branch'
+        required: true
+        default: 'android-msm-4.19-arisu'
+      BUILD_SCRIPT:
+        description: 'Build Script'
+        required: true
+        default: 'build_alioth.sh'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Build Environment
+      run: |
+        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M")" >> $GITHUB_ENV
+        sudo apt update
+        sudo apt install repo bc make bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev
+
+    - name: Checkout AnyKernel3
+      uses: actions/checkout@v4
+      with:
+        repository: lightsummer233/AnyKernel3
+        path: build/AnyKernel3
+
+    - name: Checkout Kernel Source
+      run: |
+        cd build
+        repo init -u https://github.com/${{ github.event.inputs.KERNEL_MANIFEST }}.git -b ${{ github.event.inputs.KERNEL_MANIFEST_BRANCH }}
+        repo sync
+
+    - name: Setup KernelSU
+      run: |
+        cd build/kernel
+        git config --global user.email "lightsummer233@awainatsu.moe"
+        git config --global user.name "lightsummer233"
+        git am ../../patch/KernelSU.patch
+        curl -LSs "https://raw.githubusercontent.com/lightsummer233/KernelSU/main/kernel/setup.sh" | bash -s main
+        git add -A && git commit -a -m "Add KernelSU"
+
+    - name: Build Kernel
+      run: |
+        cd build
+        bash ${{ github.event.inputs.BUILD_SCRIPT }}
+
+    - name: Configuration AnyKernel3
+      run: |
+        cd build
+        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" kernel/arch/arm64/configs/vendor/xiaomi/sm8250-common.config | cut -d'-' -f2 | tr -d '"')
+        sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
+        cp out/*/dist/Image AnyKernel3
+        cp out/*/dist/dtbo.img AnyKernel3
+        cp out/*/dist/dtb AnyKernel3
+
+    - name: Upload Kernel
+      uses: actions/upload-artifact@v4
+      with:
+        name: github.event.inputs.KERNEL_MANIFEST_BRANCH-${{ env.BUILD_TIME }}
+        path: |
+          kernel-source/AnyKernel3/
+          !kernel-source/AnyKernel3/*.git*
+          !kernel-source/AnyKernel3/patch
+          !kernel-source/AnyKernel3/modules
+          !kernel-source/AnyKernel3/ramdisk
+        compression-level: 9
+
