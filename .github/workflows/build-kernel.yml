@@ -46,6 +46,11 @@ on:
         required: true
         default: false
         type: boolean
+      ADD_PATH_UMOUNT:
+        description: 'Add `path_umount` for KernelSU'
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -65,6 +70,7 @@ jobs:
         # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
         echo "ENABLE_KERNELSU=${{ github.event.inputs.ENABLE_KERNELSU }}" >> $GITHUB_ENV
         echo "ENABLE_KERNELSU_DEBUG=${{ github.event.inputs.ENABLE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
+        echo "ADD_PATH_UMOUNT=${{ github.event.inputs.ADD_PATH_UMOUNT }}" >> $GITHUB_ENV
 
     - name: Setup Build Environment
       run: |
@@ -116,6 +122,9 @@ jobs:
         echo "ENABLE_KERNELSU=-KernelSU" >> $GITHUB_ENV
         if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
           echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        fi
+        if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
+          git am ../patch/KernelSU-path_umount.patch
         fi
 
     - name: Build Kernel
