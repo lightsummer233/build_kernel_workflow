@@ -15,11 +15,30 @@ on:
         description: 'Build Script'
         required: true
         default: 'build_alioth.sh'
+      ADD_KERNELSU:
+        description: 'Add KernelSU'
+        required: true
+        default: false
+        type: boolean
+      ADD_PATH_UMOUNT:
+        description: 'Add `path_umount` for KernelSU'
+        required: true
+        default: false
+        type: boolean
+      ENABLE_CCACHE:
+        description: 'Enable ccache'
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   build:
     name: Build Kernel
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
     steps:
     - uses: actions/checkout@v4
 
@@ -40,6 +59,18 @@ jobs:
         sudo apt update
         sudo apt install repo bc make bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev
 
+    - name: Set swap to 10G
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 10
+
+    - name: Setup ccache
+      if: github.event.inputs.ENABLE_CCACHE == 'true'
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: build-kernel-${{ github.event.inputs.KERNEL_MANIFEST_BRANCH }}
+        max-size: 2G
+
     - name: Checkout AnyKernel3
       uses: actions/checkout@v4
       with:
@@ -53,6 +84,7 @@ jobs:
         repo sync
 
     - name: Setup KernelSU
+      if: github.event.inputs.ADD_KERNELSU == 'true'
       run: |
         cd build/kernel
         git config --global user.email "lightsummer233@awainatsu.moe"
@@ -60,6 +92,12 @@ jobs:
         git am ../../patch/KernelSU.patch
         curl -LSs "https://raw.githubusercontent.com/lightsummer233/KernelSU/main/kernel/setup.sh" | bash -s main
         git add -A && git commit -a -m "Add KernelSU"
+
+    - name: Setup path_umount
+      if: github.event.inputs.ADD_PATH_UMOUNT == 'true'
+      run: |
+        cd build/kernel
+        git am ../../patch/KernelSU-path_umount.patch
 
     - name: Build Kernel
       run: |
@@ -69,8 +107,6 @@ jobs:
     - name: Configuration AnyKernel3
       run: |
         cd build
-        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" kernel/arch/arm64/configs/vendor/xiaomi/sm8250-common.config | cut -d'-' -f2 | tr -d '"')
-        sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
         cp out/*/dist/Image AnyKernel3
         cp out/*/dist/dtbo.img AnyKernel3
         cp out/*/dist/dtb AnyKernel3
